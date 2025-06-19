@@ -1,0 +1,16 @@
+# Ignore environment config
+.env
+
+# Ignore Google service account key
+google_service_account.json
+
+# Python and editor defaults
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env.*
+*.env
+.vscode/
+.idea/
+venv/
