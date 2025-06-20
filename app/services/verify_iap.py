@@ -15,6 +15,7 @@ android_publisher = build('androidpublisher', 'v3', credentials=credentials)
 
 def verify_purchase(package_name: str, product_id: str, purchase_token: str):
     try:
+        print(f"🔍 Using credentials: {credentials.service_account_email}")
         result = android_publisher.purchases().products().get(
             packageName=package_name,
             productId=product_id,
