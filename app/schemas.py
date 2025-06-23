@@ -1,16 +1,14 @@
-from typing import Any
-
+from typing import Optional, Dict
 from pydantic import BaseModel
-from starlette.responses import JSONResponse
-
 
 class PurchaseVerifyRequest(BaseModel):
+    platform: str
+    packageName: Optional[str] = None
     productId: str
     purchaseToken: str
-    packageName: str
+    iosSharedSecret: Optional[str] = None
 
 class PurchaseVerifyResponse(BaseModel):
     success: bool
     message: str
-    data: dict[str, Any]
-
+    data: Optional[Dict] = None

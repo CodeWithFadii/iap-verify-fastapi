@@ -1,44 +1,36 @@
-from fastapi import APIRouter, HTTPException, Header, status
-
-from app.config import settings
+from fastapi import APIRouter, HTTPException, status
 from app.schemas import PurchaseVerifyRequest, PurchaseVerifyResponse
-from app.services.verify_iap import verify_purchase
-import logging
+from app.services import verify_iap_google, verify_iap_ios
 
-router = APIRouter(tags=["In App Purchases"])
-
+router = APIRouter(tags=["Verify In App Purchases"])
 
 @router.post("/verify_purchase", response_model=PurchaseVerifyResponse)
-def verify_iap(
-        data: PurchaseVerifyRequest,
-        x_api_key: str = Header(...),
-):
-
+def verify_iap(data: PurchaseVerifyRequest):
     try:
-        if x_api_key != settings.api_secret_key:
-            print('invalid')
-            raise HTTPException(status_code=403, detail="Unauthorized")
-
-        result = verify_purchase(
-            package_name=data.packageName,
-            product_id=data.productId,
-            purchase_token=data.purchaseToken,
-        )
-
-        if result and result.get("purchaseState") == 0:
-            return PurchaseVerifyResponse(
-                success=True,
-                message="Purchase verified successfully",
-                data=result,
+        if data.platform.lower() == "android":
+            result = verify_iap_google.verify_subscription(
+                package_name=data.packageName,
+                subscription_id=data.productId,
+                purchase_token=data.purchaseToken,
             )
+            subscription_status = verify_iap_google.determine_subscription_status_android(result)
+            result["subscriptionStatus"] = subscription_status
+
+        elif data.platform.lower() == "ios":
+            result = verify_iap_ios.verify_ios_receipt(
+                receipt_data=data.purchaseToken,
+                password=data.iosSharedSecret
+            )
+            subscription_status = verify_iap_ios.determine_subscription_status_ios(result)
+            result["subscriptionStatus"] = subscription_status
+
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or unverified purchase.",
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported platform")
 
-    except Exception :
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Something went wrong while verifying the purchase."
-        )
+        if subscription_status in ["active", "canceled_but_active"]:
+            return PurchaseVerifyResponse(success=True, message="Purchase verified successfully.", data=result)
+
+        return PurchaseVerifyResponse(success=False, message="Invalid or expired subscription.", data=result)
+
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error verifying purchase: {str(e)}")

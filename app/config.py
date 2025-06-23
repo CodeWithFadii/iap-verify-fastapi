@@ -2,7 +2,6 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     google_service_account_file: str
-    api_secret_key: str
 
     class Config:
         env_file = ".env"
